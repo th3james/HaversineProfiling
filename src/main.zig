@@ -1,31 +1,19 @@
 const std = @import("std");
 
+const generate = @import("generate.zig");
+
 pub fn main() !void {
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    var args = try std.process.argsWithAllocator(allocator);
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    defer args.deinit();
 
-    try bw.flush();
+    _ = args.next(); // pop program name
+
+    const stdout = std.io.getStdOut().writer();
+
+    try generate.generate(stdout);
 }
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit();
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "fuzz example" {
-    const Context = struct {
-        fn testOne(context: @This(), input: []const u8) anyerror!void {
-            _ = context;
-            try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input));
-        }
-    };
-    try std.testing.fuzz(Context{}, Context.testOne, .{});
-}
-
