@@ -1,4 +1,5 @@
 const std = @import("std");
+const RndGen = std.Random.DefaultPrng;
 
 const generate = @import("generate.zig");
 
@@ -15,5 +16,7 @@ pub fn main() !void {
 
     const stdout = std.io.getStdOut().writer();
 
-    try generate.generate(stdout);
+    var rand = RndGen.init(@as(u64, @bitCast(std.time.milliTimestamp())));
+
+    try generate.generate(stdout, rand.random(), 10);
 }
