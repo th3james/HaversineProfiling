@@ -13,16 +13,18 @@ const CoordinatePairs = struct { pairs: []CoordinatePair };
 
 pub fn generate(writer: anytype, rng: std.Random, count: u32) !void {
     _ = rng;
-    try writer.writeAll("{\"pairs\": [");
-    for (0..count) |i| {
-        if (i > 0) {
-            try writer.writeAll(",{\"x0\": 0, \"y0\": 0, \"x1\": 0, \"y1\": 0}");
-        } else {
-            try writer.writeAll("{\"x0\": 0, \"y0\": 0, \"x1\": 0, \"y1\": 0}");
-        }
+    var json_writer = std.json.writeStream(writer, .{});
+    try json_writer.beginObject();
+    try json_writer.objectField("pairs");
+    try json_writer.beginArray();
+    for (0..count) |_| {
+        try json_writer.write(CoordinatePair{
+            .x0 = 0, .y0 = 0, .x1 = 0, .y1 = 0,
+        });
     }
+    try json_writer.endArray();
+    try json_writer.endObject();
 
-    try writer.writeAll("]}");
 }
 
 fn testRng() std.Random.Xoroshiro128 {
