@@ -11,15 +11,31 @@ const CoordinatePair = struct {
 
 const CoordinatePairs = struct { pairs: []CoordinatePair };
 
+fn randomLat(rng: std.Random) f64 {
+    const result = (rng.float(f64) * 180) - 90;
+    assert(result >= -90);
+    assert(result <= 90);
+    return result;
+}
+
+fn randomLng(rng: std.Random) f64 {
+    const result = (rng.float(f64) * 360) - 180;
+    assert(result >= -180);
+    assert(result <= 180);
+    return result;
+}
+
 pub fn generate(writer: anytype, rng: std.Random, count: u32) !void {
-    _ = rng;
     var json_writer = std.json.writeStream(writer, .{});
     try json_writer.beginObject();
     try json_writer.objectField("pairs");
     try json_writer.beginArray();
     for (0..count) |_| {
         try json_writer.write(CoordinatePair{
-            .x0 = 0, .y0 = 0, .x1 = 0, .y1 = 0,
+            .x0 = randomLat(rng),
+            .y0 = randomLng(rng),
+            .x1 = randomLat(rng),
+            .y1 = randomLng(rng),
         });
     }
     try json_writer.endArray();
