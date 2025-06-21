@@ -12,21 +12,21 @@ const CoordinatePair = struct {
 const CoordinatePairs = struct { pairs: []CoordinatePair };
 
 
-const LAT_RANGE = 180;
-const LAT_OFFSET = LAT_RANGE / 2;
-fn randomLat(rng: std.Random) f64 {
-    const result = (rng.float(f64) * LAT_RANGE) - LAT_OFFSET;
-    assert(result >= -90);
-    assert(result <= 90);
-    return result;
-}
-
 const LNG_RANGE = 360;
 const LNG_OFFSET = LNG_RANGE / 2;
 fn randomLng(rng: std.Random) f64 {
     const result = (rng.float(f64) * LNG_RANGE) - LNG_OFFSET;
     assert(result >= -180);
     assert(result <= 180);
+    return result;
+}
+
+const LAT_RANGE = 180;
+const LAT_OFFSET = LAT_RANGE / 2;
+fn randomLat(rng: std.Random) f64 {
+    const result = (rng.float(f64) * LAT_RANGE) - LAT_OFFSET;
+    assert(result >= -90);
+    assert(result <= 90);
     return result;
 }
 
@@ -37,10 +37,10 @@ pub fn generate(writer: anytype, rng: std.Random, count: u32) !void {
     try json_writer.beginArray();
     for (0..count) |_| {
         try json_writer.write(CoordinatePair{
-            .x0 = randomLat(rng),
-            .y0 = randomLng(rng),
-            .x1 = randomLat(rng),
-            .y1 = randomLng(rng),
+            .x0 = randomLng(rng),
+            .y0 = randomLat(rng),
+            .x1 = randomLng(rng),
+            .y1 = randomLat(rng),
         });
     }
     try json_writer.endArray();
