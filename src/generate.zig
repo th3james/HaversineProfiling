@@ -11,15 +11,20 @@ const CoordinatePair = struct {
 
 const CoordinatePairs = struct { pairs: []CoordinatePair };
 
+
+const LAT_RANGE = 180;
+const LAT_OFFSET = LAT_RANGE / 2;
 fn randomLat(rng: std.Random) f64 {
-    const result = (rng.float(f64) * 180) - 90;
+    const result = (rng.float(f64) * LAT_RANGE) - LAT_OFFSET;
     assert(result >= -90);
     assert(result <= 90);
     return result;
 }
 
+const LNG_RANGE = 360;
+const LNG_OFFSET = LNG_RANGE / 2;
 fn randomLng(rng: std.Random) f64 {
-    const result = (rng.float(f64) * 360) - 180;
+    const result = (rng.float(f64) * LNG_RANGE) - LNG_OFFSET;
     assert(result >= -180);
     assert(result <= 180);
     return result;
