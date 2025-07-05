@@ -1,6 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const testing = std.testing;
+const RndGen = std.Random.DefaultPrng;
 
 const CoordinatePair = struct {
     x0: f64,
@@ -30,8 +31,8 @@ fn randomLat(rng: std.Random) f64 {
     return result;
 }
 
-pub fn generate(writer: anytype, rng: std.Random, count: u32) !void {
-    var json_writer = std.json.writeStream(writer, .{});
+pub fn generate(pair_writer: anytype, rng: std.Random, count: u32) !f64 {
+    var json_writer = std.json.writeStream(pair_writer, .{});
     try json_writer.beginObject();
     try json_writer.objectField("pairs");
     try json_writer.beginArray();
@@ -46,6 +47,7 @@ pub fn generate(writer: anytype, rng: std.Random, count: u32) !void {
     try json_writer.endArray();
     try json_writer.endObject();
 
+    return 4.4;
 }
 
 fn testRng() std.Random.Xoroshiro128 {
@@ -53,16 +55,16 @@ fn testRng() std.Random.Xoroshiro128 {
 }
 
 test "generates valid JSON with a pairs key" {
-    var buffer = std.ArrayList(u8).init(testing.allocator);
-    defer buffer.deinit();
+    var point_buffer = std.ArrayList(u8).init(testing.allocator);
+    defer point_buffer.deinit();
 
     var rng = testRng();
-    try generate(buffer.writer(), rng.random(), 0);
+    _ = try generate(point_buffer.writer(), rng.random(), 0);
 
     const result = try std.json.parseFromSlice(
         CoordinatePairs,
         testing.allocator,
-        buffer.items,
+        point_buffer.items,
         .{},
     );
     defer result.deinit();
@@ -75,7 +77,8 @@ test "respects the count" {
     var rng = testRng();
     const count = rng.random().intRangeAtMost(u32, 0, 3);
     assert(count < 4);
-    try generate(buffer.writer(), rng.random(), count);
+
+    _ = try generate(buffer.writer(), rng.random(), count);
 
     const result = try std.json.parseFromSlice(
         CoordinatePairs,
@@ -85,4 +88,14 @@ test "respects the count" {
     );
     defer result.deinit();
     try std.testing.expectEqual(count, result.value.pairs.len);
+}
+
+test  "returns the reference average" {
+    var buffer = std.ArrayList(u8).init(testing.allocator);
+    defer buffer.deinit();
+
+    var rand = RndGen.init(1);
+    const result_avg = try generate(buffer.writer(), rand.random(), 2);
+
+    try std.testing.expectEqual(3.4, result_avg);
 }
