@@ -31,7 +31,7 @@ fn randomLat(rng: std.Random) f64 {
     return result;
 }
 
-pub fn generate(pair_writer: *std.io.Writer, rng: std.Random, count: u32) !f64 {
+pub fn generate(pair_writer: *std.Io.Writer, rng: std.Random, count: u32) !f64 {
     var distance_sum: f64 = 0.0;
     var json_writer: std.json.Stringify = .{
         .writer = pair_writer,
@@ -62,13 +62,11 @@ fn testRng() std.Random.Xoroshiro128 {
 test "generates valid JSON with a pairs key" {
     var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 15);
     defer point_buffer.deinit(testing.allocator);
-    var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
+    var point_buffer_allocating_writer = std.Io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
     defer point_buffer_allocating_writer.deinit();
 
     var rng = testRng();
     _ = try generate(&point_buffer_allocating_writer.writer, rng.random(), 0);
-
-    try point_buffer_allocating_writer.writer.flush();
 
     const written_data = point_buffer_allocating_writer.written();
 
@@ -82,9 +80,9 @@ test "generates valid JSON with a pairs key" {
 }
 
 test "respects the count" {
-    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 4);
+    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 500);
     defer point_buffer.deinit(testing.allocator);
-    var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
+    var point_buffer_allocating_writer = std.Io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
     defer point_buffer_allocating_writer.deinit();
 
     var rng = testRng();
@@ -106,9 +104,9 @@ test "respects the count" {
 }
 
 test "returns the reference average" {
-    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 4);
+    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 400);
     defer point_buffer.deinit(testing.allocator);
-    var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
+    var point_buffer_allocating_writer = std.Io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
     defer point_buffer_allocating_writer.deinit();
 
     var rand = RndGen.init(1);
