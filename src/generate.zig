@@ -2,6 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 const testing = std.testing;
 const RndGen = std.Random.DefaultPrng;
+const referenceHaversine = @import("reference_haversine.zig").referenceHaversine;
 
 const CoordinatePair = struct {
     x0: f64,
@@ -11,7 +12,6 @@ const CoordinatePair = struct {
 };
 
 const CoordinatePairs = struct { pairs: []CoordinatePair };
-
 
 const LNG_RANGE = 360;
 const LNG_OFFSET = LNG_RANGE / 2;
@@ -31,23 +31,28 @@ fn randomLat(rng: std.Random) f64 {
     return result;
 }
 
-pub fn generate(pair_writer: anytype, rng: std.Random, count: u32) !f64 {
-    var json_writer = std.json.writeStream(pair_writer, .{});
+pub fn generate(pair_writer: *std.io.Writer, rng: std.Random, count: u32) !f64 {
+    var distance_sum: f64 = 0.0;
+    var json_writer: std.json.Stringify = .{
+        .writer = pair_writer,
+    };
     try json_writer.beginObject();
     try json_writer.objectField("pairs");
     try json_writer.beginArray();
     for (0..count) |_| {
-        try json_writer.write(CoordinatePair{
+        const pair = CoordinatePair{
             .x0 = randomLng(rng),
             .y0 = randomLat(rng),
             .x1 = randomLng(rng),
             .y1 = randomLat(rng),
-        });
+        };
+        try json_writer.write(pair);
+        distance_sum += referenceHaversine(pair.x0, pair.y0, pair.x1, pair.y1);
     }
     try json_writer.endArray();
     try json_writer.endObject();
 
-    return 4.4;
+    return distance_sum / @as(f64, @floatFromInt(count));
 }
 
 fn testRng() std.Random.Xoroshiro128 {
@@ -55,11 +60,12 @@ fn testRng() std.Random.Xoroshiro128 {
 }
 
 test "generates valid JSON with a pairs key" {
-    var point_buffer = std.ArrayList(u8).init(testing.allocator);
-    defer point_buffer.deinit();
+    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 0);
+    defer point_buffer.deinit(testing.allocator);
+    var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
 
     var rng = testRng();
-    _ = try generate(point_buffer.writer(), rng.random(), 0);
+    _ = try generate(&point_buffer_allocating_writer.writer, rng.random(), 0);
 
     const result = try std.json.parseFromSlice(
         CoordinatePairs,
@@ -71,31 +77,33 @@ test "generates valid JSON with a pairs key" {
 }
 
 test "respects the count" {
-    var buffer = std.ArrayList(u8).init(testing.allocator);
-    defer buffer.deinit();
+    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 4);
+    defer point_buffer.deinit(testing.allocator);
+    var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
 
     var rng = testRng();
     const count = rng.random().intRangeAtMost(u32, 0, 3);
     assert(count < 4);
 
-    _ = try generate(buffer.writer(), rng.random(), count);
+    _ = try generate(&point_buffer_allocating_writer.writer, rng.random(), count);
 
     const result = try std.json.parseFromSlice(
         CoordinatePairs,
         testing.allocator,
-        buffer.items,
+        point_buffer.items,
         .{},
     );
     defer result.deinit();
     try std.testing.expectEqual(count, result.value.pairs.len);
 }
 
-test  "returns the reference average" {
-    var buffer = std.ArrayList(u8).init(testing.allocator);
-    defer buffer.deinit();
+test "returns the reference average" {
+    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 4);
+    defer point_buffer.deinit(testing.allocator);
+    var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
 
     var rand = RndGen.init(1);
-    const result_avg = try generate(buffer.writer(), rand.random(), 2);
+    const result_avg = try generate(&point_buffer_allocating_writer.writer, rand.random(), 2);
 
     try std.testing.expectEqual(3.4, result_avg);
 }

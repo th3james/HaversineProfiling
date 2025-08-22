@@ -14,9 +14,13 @@ pub fn main() !void {
 
     _ = args.next(); // pop program name
 
-    const stdout = std.io.getStdOut().writer();
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+    const stdout = &stdout_writer.interface;
 
     var rand = RndGen.init(@as(u64, @bitCast(std.time.milliTimestamp())));
 
-    try generate.generate(stdout, rand.random(), 10);
+    _ = try generate.generate(stdout, rand.random(), 10);
+
+    try stdout.flush();
 }
