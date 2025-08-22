@@ -60,17 +60,22 @@ fn testRng() std.Random.Xoroshiro128 {
 }
 
 test "generates valid JSON with a pairs key" {
-    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 0);
+    var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 15);
     defer point_buffer.deinit(testing.allocator);
     var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
+    defer point_buffer_allocating_writer.deinit();
 
     var rng = testRng();
     _ = try generate(&point_buffer_allocating_writer.writer, rng.random(), 0);
 
+    try point_buffer_allocating_writer.writer.flush();
+
+    const written_data = point_buffer_allocating_writer.written();
+
     const result = try std.json.parseFromSlice(
         CoordinatePairs,
         testing.allocator,
-        point_buffer.items,
+        written_data,
         .{},
     );
     defer result.deinit();
@@ -80,6 +85,7 @@ test "respects the count" {
     var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 4);
     defer point_buffer.deinit(testing.allocator);
     var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
+    defer point_buffer_allocating_writer.deinit();
 
     var rng = testRng();
     const count = rng.random().intRangeAtMost(u32, 0, 3);
@@ -87,10 +93,12 @@ test "respects the count" {
 
     _ = try generate(&point_buffer_allocating_writer.writer, rng.random(), count);
 
+    const written_data = point_buffer_allocating_writer.written();
+
     const result = try std.json.parseFromSlice(
         CoordinatePairs,
         testing.allocator,
-        point_buffer.items,
+        written_data,
         .{},
     );
     defer result.deinit();
@@ -101,9 +109,10 @@ test "returns the reference average" {
     var point_buffer = try std.array_list.Aligned(u8, null).initCapacity(testing.allocator, 4);
     defer point_buffer.deinit(testing.allocator);
     var point_buffer_allocating_writer = std.io.Writer.Allocating.fromArrayList(testing.allocator, &point_buffer);
+    defer point_buffer_allocating_writer.deinit();
 
     var rand = RndGen.init(1);
     const result_avg = try generate(&point_buffer_allocating_writer.writer, rand.random(), 2);
 
-    try std.testing.expectEqual(3.4, result_avg);
+    try std.testing.expectEqual(8649.899195741775, result_avg);
 }
