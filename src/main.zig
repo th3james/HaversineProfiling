@@ -20,7 +20,9 @@ pub fn main() !void {
 
     var rand = RndGen.init(@as(u64, @bitCast(std.time.milliTimestamp())));
 
-    _ = try generate.generate(stdout, rand.random(), 10);
+    const distance_avg = try generate.generate(stdout, rand.random(), 100000000);
+
+    try stdout.print("\nExpected sum: {}", .{distance_avg });
 
     try stdout.flush();
 }

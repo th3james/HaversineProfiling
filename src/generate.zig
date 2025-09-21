@@ -4,6 +4,11 @@ const testing = std.testing;
 const RndGen = std.Random.DefaultPrng;
 const referenceHaversine = @import("reference_haversine.zig").referenceHaversine;
 
+const Coordinates = struct {
+    x: f64,
+    y: f64,
+};
+
 const CoordinatePair = struct {
     x0: f64,
     y0: f64,
@@ -31,7 +36,32 @@ fn randomLat(rng: std.Random) f64 {
     return result;
 }
 
+fn randomSpreadLng(rng: std.Random, cluster_lng: f64, spread: f64) f64 {
+    assert(cluster_lng >= -180);
+    assert(cluster_lng <= 180);
+    const noise = (rng.float(f64) - 0.5) * spread;
+    const result = cluster_lng + noise;
+    return std.math.clamp(result, -180, 180);
+}
+
+fn randomSpreadLat(rng: std.Random, cluster_lat: f64, spread: f64) f64 {
+    assert(cluster_lat >= -90);
+    assert(cluster_lat <= 90);
+    const noise = (rng.float(f64) - 0.5) * spread;
+    const result = cluster_lat + noise;
+    return std.math.clamp(result, -90, 90);
+}
+
 pub fn generate(pair_writer: *std.Io.Writer, rng: std.Random, count: u32) !f64 {
+    const CLUSTER_COUNT = 16;
+    var clusters: [CLUSTER_COUNT]Coordinates = undefined;
+    for (0..CLUSTER_COUNT) |i| {
+        clusters[i] = Coordinates{
+            .x = randomLng(rng),
+            .y = randomLat(rng),
+        };
+    }
+
     var distance_sum: f64 = 0.0;
     var json_writer: std.json.Stringify = .{
         .writer = pair_writer,
@@ -39,12 +69,15 @@ pub fn generate(pair_writer: *std.Io.Writer, rng: std.Random, count: u32) !f64 {
     try json_writer.beginObject();
     try json_writer.objectField("pairs");
     try json_writer.beginArray();
-    for (0..count) |_| {
+    const SPREAD = 2.0;
+    for (0..count) |i| {
+        const source_cluster = clusters[i % CLUSTER_COUNT];
+        const dest_cluster = clusters[rng.intRangeLessThan(u8, 0, CLUSTER_COUNT-1)];
         const pair = CoordinatePair{
-            .x0 = randomLng(rng),
-            .y0 = randomLat(rng),
-            .x1 = randomLng(rng),
-            .y1 = randomLat(rng),
+            .x0 = randomSpreadLng(rng, source_cluster.x, SPREAD),
+            .y0 = randomSpreadLat(rng, source_cluster.y, SPREAD),
+            .x1 = randomSpreadLng(rng, dest_cluster.x, SPREAD),
+            .y1 = randomSpreadLat(rng, dest_cluster.y, SPREAD),
         };
         try json_writer.write(pair);
         distance_sum += referenceHaversine(pair.x0, pair.y0, pair.x1, pair.y1);
