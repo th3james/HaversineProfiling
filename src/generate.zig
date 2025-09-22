@@ -53,7 +53,7 @@ fn randomSpreadLat(rng: std.Random, cluster_lat: f64, spread: f64) f64 {
 }
 
 pub fn generate(pair_writer: *std.Io.Writer, rng: std.Random, count: u32) !f64 {
-    const CLUSTER_COUNT = 16;
+    const CLUSTER_COUNT = 8;
     var clusters: [CLUSTER_COUNT]Coordinates = undefined;
     for (0..CLUSTER_COUNT) |i| {
         clusters[i] = Coordinates{
@@ -69,7 +69,7 @@ pub fn generate(pair_writer: *std.Io.Writer, rng: std.Random, count: u32) !f64 {
     try json_writer.beginObject();
     try json_writer.objectField("pairs");
     try json_writer.beginArray();
-    const SPREAD = 2.0;
+    const SPREAD = 3.0;
     for (0..count) |i| {
         const source_cluster = clusters[i % CLUSTER_COUNT];
         const dest_cluster = clusters[rng.intRangeLessThan(u8, 0, CLUSTER_COUNT-1)];

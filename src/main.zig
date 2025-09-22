@@ -1,7 +1,12 @@
 const std = @import("std");
+const assert = std.debug.assert;
 const RndGen = std.Random.DefaultPrng;
 
 const generate = @import("generate.zig");
+
+fn printUsage() void {
+    std.debug.print("Usage: haversine <generate>\n", .{});
+}
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
@@ -14,15 +19,26 @@ pub fn main() !void {
 
     _ = args.next(); // pop program name
 
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-    const stdout = &stdout_writer.interface;
+    const command = args.next() orelse {
+        printUsage();
+        return;
+    };
 
-    var rand = RndGen.init(@as(u64, @bitCast(std.time.milliTimestamp())));
+    if (std.mem.eql(u8, command, "generate")) {
+        var stdout_buffer: [1024]u8 = undefined;
+        var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+        const stdout = &stdout_writer.interface;
 
-    const distance_avg = try generate.generate(stdout, rand.random(), 100000000);
+        var rand = RndGen.init(@as(u64, @bitCast(std.time.milliTimestamp())));
 
-    try stdout.print("\nExpected sum: {}", .{distance_avg });
+        const distance_avg = try generate.generate(stdout, rand.random(), 1000000);
 
-    try stdout.flush();
+        try stdout.print("\nExpected sum: {}", .{distance_avg});
+
+        try stdout.flush();
+    } else {
+        std.debug.print("Unknown command {s}\n", .{command});
+        printUsage();
+        return;
+    }
 }
