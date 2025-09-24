@@ -25,17 +25,33 @@ pub fn main() !void {
     };
 
     if (std.mem.eql(u8, command, "generate")) {
-        var stdout_buffer: [1024]u8 = undefined;
-        var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
-        const stdout = &stdout_writer.interface;
+        const usage = "Usage: haversine generate <filename> <point_count>\n";
+        const filename = args.next() orelse {
+            std.debug.print(usage, .{});
+            return;
+        };
+
+        const point_count_str = args.next() orelse {
+            std.debug.print(usage, .{});
+            return;
+        };
+
+        const point_count = std.fmt.parseInt(u32, point_count_str, 10) catch {
+            std.debug.print("Invalid point count: {s}\n", .{point_count_str});
+            return;
+        };
+
+        var file_buffer: [1024]u8 = undefined;
+        const file = try std.fs.cwd().createFile(filename, .{ .read = true, .truncate = true });
+        defer file.close();
+        var file_writer = file.writer(&file_buffer);
 
         var rand = RndGen.init(@as(u64, @bitCast(std.time.milliTimestamp())));
 
-        const distance_avg = try generate.generate(stdout, rand.random(), 1000000);
+        const distance_avg = try generate.generate(&file_writer.interface, rand.random(), point_count);
 
-        try stdout.print("\nExpected sum: {}", .{distance_avg});
-
-        try stdout.flush();
+        try file_writer.interface.flush();
+        std.debug.print("\nExpected sum: {}", .{distance_avg});
     } else {
         std.debug.print("Unknown command {s}\n", .{command});
         printUsage();
