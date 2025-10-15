@@ -3,6 +3,7 @@ const assert = std.debug.assert;
 const RndGen = std.Random.DefaultPrng;
 
 const generate = @import("generate.zig");
+const calculate = @import("calculate.zig");
 
 fn printUsage() void {
     std.debug.print("Usage: haversine <generate>\n", .{});
@@ -52,6 +53,23 @@ pub fn main() !void {
 
         try file_writer.interface.flush();
         std.debug.print("\nExpected sum: {}", .{distance_avg});
+    } else if (std.mem.eql(u8, command, "parse")) {
+        const usage = "Usage: haversine parse <filename>\n";
+
+        const filename = args.next() orelse {
+            std.debug.print(usage, .{});
+            return;
+        };
+
+        const file = try std.fs.cwd().openFile(filename, .{ });
+        defer file.close();
+
+        var file_buffer: [1024]u8 = undefined;
+        var file_reader = file.reader(&file_buffer);
+
+        try calculate.calculate(&file_reader.interface);
+
+        return;
     } else {
         std.debug.print("Unknown command {s}\n", .{command});
         printUsage();
