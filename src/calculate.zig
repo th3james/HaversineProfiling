@@ -118,19 +118,112 @@ const Pair = struct {
     y1: f64,
 };
 
-fn read_pair(json_reader: *std.Io.Reader) !Pair {
-    const result = Pair{
-        .x0 = 0,
-        .y0 = 0,
-        .x1 = 0,
-        .y1 = 0,
-    };
-    try expect_and_consume_char(json_reader, '{');
-    try expect_and_consume_char(json_reader, '}');
+fn read_quoted_string(json_reader: *std.Io.Reader, buffer: []u8) ![]const u8 {
+    try expect_and_consume_char(json_reader, '"');
 
-    return result;
+    var index: usize = 0;
+    while (index < buffer.len) {
+        const byte = try json_reader.takeByteSigned();
+        if (byte == '"') {
+            return buffer[0..index];
+        }
+        buffer[index] = @intCast(byte);
+        index += 1;
+    }
+    return error.StringTooLong;
 }
 
+fn expect_and_consume_key(json_reader: *std.Io.Reader, expected_key: []const u8) !void {
+    var key_buffer: [8]u8 = undefined;
+
+    const key = try read_quoted_string(json_reader, &key_buffer);
+
+    if (!std.mem.eql(u8, expected_key, key)) {
+        return error.UnexpectedKey;
+    }
+
+    try expect_and_consume_char(json_reader, ':');
+}
+
+test "expect_and_consume_key when key succeeds" {
+    const test_input = "\"x0\": 1";
+    var fixed_reader = std.Io.Reader.fixed(test_input);
+    var buffer: [16]u8 = undefined;
+    var limited = std.Io.Reader.Limited.init(&fixed_reader, @enumFromInt(test_input.len), &buffer);
+
+    try expect_and_consume_key(&limited.interface, "x0");
+
+    const next_byte = try limited.interface.peek(1);
+    try std.testing.expectEqual(' ', next_byte[0]);
+}
+
+test "expect_and_consume_key when wrong key errors" {
+    const test_input = "\"x1\": 1";
+    var fixed_reader = std.Io.Reader.fixed(test_input);
+    var buffer: [16]u8 = undefined;
+    var limited = std.Io.Reader.Limited.init(&fixed_reader, @enumFromInt(test_input.len), &buffer);
+
+    try std.testing.expectError(
+        error.UnexpectedKey,
+        expect_and_consume_key(&limited.interface, "y0"),
+    );
+}
+
+fn read_f64(json_reader: *std.Io.Reader, buffer: []u8) !f64 {
+    try advance_past_whitespace(json_reader);
+
+    var index: usize = 0;
+    while (index < buffer.len) {
+        const byte = json_reader.peek(1) catch |err| switch (err) {
+            error.EndOfStream => break,
+            else => return err,
+        };
+
+        if (byte.len == 0) break;
+
+        switch (byte[0]) {
+            '0'...'9', '.', '-', '+', 'e', 'E' => {
+                buffer[index] = byte[0];
+                index += 1;
+                _ = try json_reader.takeByteSigned();
+            },
+            else => break,
+        }
+    }
+
+    const number_str = buffer[0..index];
+    return try std.fmt.parseFloat(f64, number_str);
+}
+
+fn read_pair(json_reader: *std.Io.Reader) !Pair {
+    try expect_and_consume_char(json_reader, '{');
+
+    var value_buffer: [32]u8 = undefined;
+
+    try expect_and_consume_key(json_reader, "x0");
+    const x0 = try read_f64(json_reader, &value_buffer);
+    try expect_and_consume_char(json_reader, ',');
+
+    try expect_and_consume_key(json_reader, "y0");
+    const y0 = try read_f64(json_reader, &value_buffer);
+    try expect_and_consume_char(json_reader, ',');
+
+    try expect_and_consume_key(json_reader, "x1");
+    const x1 = try read_f64(json_reader, &value_buffer);
+    try expect_and_consume_char(json_reader, ',');
+
+    try expect_and_consume_key(json_reader, "y1");
+    const y1 = try read_f64(json_reader, &value_buffer);
+
+    try expect_and_consume_char(json_reader, '}');
+
+    return Pair{
+        .x0 = x0,
+        .y0 = y0,
+        .x1 = x1,
+        .y1 = y1,
+    };
+}
 
 test "read_pair when valid succeeds" {
     const test_input = "{ \"x0\": 1.2, \"y0\": 2.3, \"x1\": 3.4, \"y1\": 4.5 }";
@@ -147,18 +240,25 @@ test "read_pair when valid succeeds" {
 }
 
 pub fn calculate(json_reader: *std.Io.Reader) !void {
+    try expect_and_consume_char(json_reader, '{');
+    try expect_and_consume_key(json_reader, "pairs");
     try expect_and_consume_char(json_reader, '[');
 
-    while(true) {
+    while (true) {
         try advance_past_whitespace(json_reader);
         const next_char = try json_reader.peek(1);
 
-        if (next_char == ']') {
+        if (next_char[0] == ']') {
             break;
+        } else if (next_char[0] == ',') {
+            _ = try json_reader.takeByteSigned();
+            continue;
         }
 
-        try read_pair(json_reader);
+        _ = try read_pair(json_reader);
+        std.debug.print("p", .{});
     }
 
     try expect_and_consume_char(json_reader, ']');
+    try expect_and_consume_char(json_reader, '}');
 }
