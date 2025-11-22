@@ -1,4 +1,5 @@
 const std = @import("std");
+const referenceHaversine = @import("reference_haversine.zig").referenceHaversine;
 
 fn advance_past_whitespace(json_reader: *std.Io.Reader) !void {
     while (true) {
@@ -239,10 +240,13 @@ test "read_pair when valid succeeds" {
     try std.testing.expectEqual(4.5, pair.y1);
 }
 
-pub fn calculate(json_reader: *std.Io.Reader) !void {
+pub fn calculate(json_reader: *std.Io.Reader) !f64 {
     try expect_and_consume_char(json_reader, '{');
     try expect_and_consume_key(json_reader, "pairs");
     try expect_and_consume_char(json_reader, '[');
+
+    var count: u32 = 0;
+    var distance_sum: f64 = 0.0;
 
     while (true) {
         try advance_past_whitespace(json_reader);
@@ -255,10 +259,13 @@ pub fn calculate(json_reader: *std.Io.Reader) !void {
             continue;
         }
 
-        _ = try read_pair(json_reader);
-        std.debug.print("p", .{});
+        const pair = try read_pair(json_reader);
+        count = count + 1;
+        distance_sum += referenceHaversine(pair.x0, pair.y0, pair.x1, pair.y1);
     }
 
     try expect_and_consume_char(json_reader, ']');
     try expect_and_consume_char(json_reader, '}');
+
+    return distance_sum / @as(f64, @floatFromInt(count));
 }

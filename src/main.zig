@@ -52,7 +52,7 @@ pub fn main() !void {
         const distance_avg = try generate.generate(&file_writer.interface, rand.random(), point_count);
 
         try file_writer.interface.flush();
-        std.debug.print("\nExpected sum: {}", .{distance_avg});
+        std.debug.print("Expected sum: {}\n", .{distance_avg});
     } else if (std.mem.eql(u8, command, "parse")) {
         const usage = "Usage: haversine parse <filename>\n";
 
@@ -61,18 +61,17 @@ pub fn main() !void {
             return;
         };
 
-        const file = try std.fs.cwd().openFile(filename, .{ });
+        const file = try std.fs.cwd().openFile(filename, .{});
         defer file.close();
 
         var file_buffer: [1024]u8 = undefined;
         var file_reader = file.reader(&file_buffer);
 
-        try calculate.calculate(&file_reader.interface);
+        const result = try calculate.calculate(&file_reader.interface);
 
-        return;
+        std.debug.print("Computed sum: {}\n", .{result});
     } else {
         std.debug.print("Unknown command {s}\n", .{command});
         printUsage();
-        return;
     }
 }
